@@ -2,6 +2,11 @@ function [input, target] = read_images(local, geometric, received_input, receive
 
 d = dir(local+'\*.png');
 
+keySet = {'circle', 'kite', 'parallelogram', 'square', 'trapezoid', 'triangle'};
+valueSet = { [1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0] [0, 0, 1, 0, 0, 0] [0, 0, 0, 1, 0, 0] [0, 0, 0, 0, 1, 0] [0, 0, 0, 0, 0, 1] };
+
+M = containers.Map(keySet, valueSet);
+
 % target = zeros(1, length(d));
 % target(target >= 0) = geometric;
 % disp(target);
@@ -17,7 +22,7 @@ for n = 1 : size(d)
     img_arr = imbinarize(I);
     vector = img_arr(:);
     input(:, n) = vector;
-    target(:, n) = geometric;
+    target(:, n) = M(geometric);
 end
 
 if(~isempty(received_input))
