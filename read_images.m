@@ -20,7 +20,6 @@ for n = 1 : size(d)
     nome = getfield(d, {n}, 'name');
     img = strcat(folder, '/', nome);
     I = imread(img);
-    imshow(I);
     I = rgb2gray(I);
     I = imresize(I, [25 25]);
     img_arr = imbinarize(I);
