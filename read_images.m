@@ -1,7 +1,11 @@
-function [input, target] = read_images(local, geometric, received_input, received_target)
+function [input, target] = read_images(local, geometric, received_input, received_target, file_name)
 
-d = dir(local+'\*.png');
-
+if ~exist('file_name', 'var')
+    d = dir(local+'\*.png');
+else
+    d = dir(strcat(local, file_name));
+end
+disp(d);
 keySet = {'circle', 'kite', 'parallelogram', 'square', 'trapezoid', 'triangle'};
 valueSet = { [1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0] [0, 0, 1, 0, 0, 0] [0, 0, 0, 1, 0, 0] [0, 0, 0, 0, 1, 0] [0, 0, 0, 0, 0, 1] };
 
@@ -16,7 +20,7 @@ for n = 1 : size(d)
     nome = getfield(d, {n}, 'name');
     img = strcat(folder, '/', nome);
     I = imread(img);
-%     img_arr = imbinarize(imresize(I, [25, 25]));
+    imshow(I);
     I = rgb2gray(I);
     I = imresize(I, [25 25]);
     img_arr = imbinarize(I);

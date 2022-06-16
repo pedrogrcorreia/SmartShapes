@@ -62,4 +62,7 @@ end
 
 accuracy = r/size(tr.testInd,2)*100;
 fprintf('Test precision %f\n', accuracy);
+
+save("best_nn.mat", "net");
+
 end
