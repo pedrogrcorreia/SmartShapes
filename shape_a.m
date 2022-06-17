@@ -16,7 +16,7 @@ net = feedforwardnet([10]);
 
 % Use all examples on training
 % net.divideFcn = 'dividerand';
-net.divideParam.trainRatio = 1;
+net.divideParam.trainRatio = 0.6;
 net.divideParam.valRatio = 0;
 net.divideParam.testRatio = 0;
 

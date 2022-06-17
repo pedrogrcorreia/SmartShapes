@@ -5,7 +5,7 @@ if ~exist('file_name', 'var')
 else
     d = dir(strcat(local, file_name));
 end
-disp(d);
+% disp(d);
 keySet = {'circle', 'kite', 'parallelogram', 'square', 'trapezoid', 'triangle'};
 valueSet = { [1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0] [0, 0, 1, 0, 0, 0] [0, 0, 0, 1, 0, 0] [0, 0, 0, 0, 1, 0] [0, 0, 0, 0, 0, 1] };
 
