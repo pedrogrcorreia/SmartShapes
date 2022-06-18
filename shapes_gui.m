@@ -22,7 +22,7 @@ function varargout = shapes_gui(varargin)
 
 % Edit the above text to modify the response to help shapes_gui
 
-% Last Modified by GUIDE v2.5 17-Jun-2022 18:52:42
+% Last Modified by GUIDE v2.5 18-Jun-2022 21:17:34
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -477,7 +477,17 @@ function btnShape_Callback(hObject, eventdata, handles)
 % hObject    handle to btnShape (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+    if(handles.hasNet == 0)
+        errordlg("No neural network loaded!", "ERROR");
+        return;
+    end
     location = get(handles.filePath, 'String');
+
+    if(isempty(location))
+        errordlg("No shape is loaded!", "ERROR");
+        return
+    end
     location = dir(location);
     file_name = location.name;
     location = location.folder;
@@ -516,24 +526,29 @@ function btnDraw_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-    binaryImg = createMask(handles.ROI, 250, 250);
-    figure;
-    binaryImg = imcomplement(binaryImg);
-    imshow(binaryImg);
-    img = getimage(findobj(handles.drawAxes, 'Tag', 'shape'));
-    figure;
-    imshow(img);
-%     boundaries = bwboundaries(binaryImg);
-%     xy = boundaries{1};
-%     x = xy(:, 2);
-%     y = xy(:, 1);
-%     hold on;
-% %     plot(handles.drawAxes, x, y, 'Color', [0 0 0], 'LineWidth', 15);
-%     
-%     img = imresize(binaryImg, [28 28]);
-%     binarizedImg = imbinarize(img);
-%     imshow(binarizedImg);
-%     hold off;
+    if(handles.hasNet == 0)
+        errordlg("No neural network loaded!", "ERROR");
+        return;
+    end
+    % Create the image from ROI
+    draw = createMask(handles.ROI, 250, 250);
+    % Changes the colors
+    draw = imcomplement(draw);
+    draw = imresize(double(draw), [25 25]);
+    imwrite(draw, 'draw.png');
+    I = imread('draw.png');
+
+%     delete newImage.png;
+%     I = imresize(double(I), [25 25]);
+    img_arr = imbinarize(I);
+    input = img_arr(:);
+
+    out = sim(handles.net, input);
+    [~, b] = max(out(:, 1));   
+
+    set(handles.resultDraw, 'visible', 'on');
+    set(handles.txtGuessDraw, 'visible', 'on');
+    set(handles.txtGuessDraw, 'String', handles.possibleShapes(b));
 
 function editLocalDataset_Callback(hObject, eventdata, handles)
 % hObject    handle to editLocalDataset (see GCBO)
@@ -562,13 +577,54 @@ function btnSearchDataset_Callback(hObject, eventdata, handles)
 % hObject    handle to btnSearchDataset (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+    set(handles.editLocalDataset, 'String', uigetdir('.', "Choose folder for simulation"));
+    if (get(handles.editLocalDataset, 'String') == '0')
+        set(handles.editLocalDataset, 'String', 'C:\');
+    end
 % --- Executes on button press in btnDataset.
 function btnDataset_Callback(hObject, eventdata, handles)
 % hObject    handle to btnDataset (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+    if handles.hasNet == 0
+        errordlg("No neural network loaded!", "ERROR");
+        return;
+    end
+
+    folderImg = get(handles.editLocalDataset, 'String');
+    folderImg = strcat(folderImg, '\');
+    if(isempty(folderImg))
+        errordlg("Input folder is empty!", "ERROR");
+        return
+    end
+    input = zeros(0, 0);
+    target = zeros(0,0);
+    selectedShapes = [];
+    for i = 1 : 6
+        cb = sprintf('handles.cb%sDS', handles.possibleShapes(i));
+        cbValue = get(eval(cb), 'Value');
+        if cbValue
+            selectedShapes = [selectedShapes handles.possibleShapes(i)];
+        end
+    end
+    
+    for n = 1 : length(selectedShapes)
+        [input, target] = read_images(folderImg+selectedShapes(n), selectedShapes(n), input, target);
+    end
+    
+    out = sim(handles.net, input);
+
+    figure;
+    plotconfusion(target, out, 'Simulation with Dataset -');
+    fh = gcf; % access the figure handle for the confusion matrix plot
+    ah = fh.Children(2); % access the corresponding axes handle
+    for n = 1 : length(handles.possibleShapes)
+        ah.XTickLabel{n} = handles.possibleShapes(n);
+        ah.YTickLabel{n} = handles.possibleShapes(n);
+    end
+    ah.XLabel.String = 'Actual'; % change the axes labels
+    ah.YLabel.String = 'Result';
 
 % --------------------------------------------------------------------
 function Untitled_1_Callback(hObject, eventdata, handles)
@@ -589,6 +645,7 @@ function mnQuit_Callback(hObject, eventdata, handles)
 % hObject    handle to mnQuit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+MSair_Callback([], [], handles);
 
 
 % --------------------------------------------------------------------
@@ -596,14 +653,20 @@ function mnDoc_Callback(hObject, eventdata, handles)
 % hObject    handle to mnDoc (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+msg = sprintf("Train neural networks to identify different shapes based on images given.\n" + ...
+    "Load and save trained networks\n" + ...
+    "Simulate results with preloaded Datasets, Draws or a image file.");
+f = msgbox(msg, "Documentation");
 
 % --------------------------------------------------------------------
-function Untitled_6_Callback(hObject, eventdata, handles)
-% hObject    handle to Untitled_6 (see GCBO)
+function mnAuthor_Callback(hObject, eventdata, handles)
+% hObject    handle to mnAuthor (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+[icondata,iconcmap] = imread('author.jfif');
+msg = sprintf("ISEC 2021/2022\nConhecimento e Raciocínio\nPedro" + ...
+    " Gonçalo dos Reis Correia\n https://github.com/pedrogrcorreia");
+h = msgbox(msg, 'Author', "custom", icondata, iconcmap);
 
 % --------------------------------------------------------------------
 function loadNet_Callback(hObject, eventdata, handles)
@@ -741,9 +804,7 @@ function drawAxes_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to drawAxes (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
-    set(gca, 'XColor', 'none', 'YColor', 'none');
-%     axes(handles.drawAxes);
-
+    set(gca, 'XColor', 'none', 'YColor', 'none', 'Color', 'w');
 % Hint: place code in OpeningFcn to populate drawAxes
 
 
@@ -752,21 +813,13 @@ function drawAxes_ButtonDownFcn(hObject, eventdata, handles)
 % hObject    handle to drawAxes (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-%     img = imread("start\circle\circle-start-0.png");
-    whiteImage = 255 * ones(250, 250, 'uint8');
+    whiteImage = 250 * ones(250, 250, 'uint8');
     imshow(whiteImage, 'Parent', handles.drawAxes);
-    if handles.hasDraw
-        set(handles.btnClearDraw, 'enable', 'on');
-        set(handles.btnDraw, 'enable', 'on');
-        delete(handles.ROI);
-        handles.ROI = drawfreehand(handles.drawAxes, 'Tag', 'shape', 'Closed', 0, 'Color', [0 0 0], 'LineWidth', 15, 'FaceAlpha', 0);
-        handles.hasDraw = 1;
-    else
-        handles.ROI = drawfreehand(handles.drawAxes, 'Tag', 'shape', 'Closed', 0, 'Color', [0 0 0], 'LineWidth', 15, 'FaceAlpha', 0);
-        set(handles.btnClearDraw, 'enable', 'on');
-        set(handles.btnDraw, 'enable', 'on');
-        handles.hasDraw = 1;
-    end
+%     hold off;
+    handles.ROI = drawfreehand(hObject, 'Tag', 'shape', 'Closed', 0, 'Color', [0 0.4470 0.7410], 'LineWidth', 15, 'FaceAlpha', 0);
+    handles.hasDraw = 1;
+    set(handles.btnClearDraw, 'enable', 'on');
+    set(handles.btnDraw, 'enable', 'on');
 
     % Update handles structure
     guidata(hObject, handles);
@@ -778,9 +831,14 @@ function btnClearDraw_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
     delete(handles.ROI);
-    handles.hasDraw = 0;
-    set(handles.btnClearDraw, 'enable', 'off');
-    set(handles.btnDraw, 'enable', 'off');
+%     cla(handles.drawAxes, 'reset');
+    axis on
+    img = findobj(handles.drawAxes, 'Type', 'image');
+    delete(img);
+    set(gca, 'XColor', 'none', 'YColor', 'none', 'Color', 'w');
+    handles.ROI = drawfreehand(handles.drawAxes, 'Tag', 'shape', 'Closed', 0, 'Color', [0 0.4470 0.7410], 'LineWidth', 15, 'FaceAlpha', 0);
+    % Update handles structure
+    guidata(hObject, handles);
 
 
 
@@ -813,3 +871,78 @@ function imgAxes_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
     set(gca, 'XColor', 'none', 'YColor', 'none');
 % Hint: place code in OpeningFcn to populate imgAxes
+
+
+% --- Executes on button press in cbsquareDS.
+function cbsquareDS_Callback(hObject, eventdata, handles)
+% hObject    handle to cbsquareDS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cbsquareDS
+
+
+% --- Executes on button press in cbtrapezoidDS.
+function cbtrapezoidDS_Callback(hObject, eventdata, handles)
+% hObject    handle to cbtrapezoidDS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cbtrapezoidDS
+
+
+% --- Executes on button press in cbtriangleDS.
+function cbtriangleDS_Callback(hObject, eventdata, handles)
+% hObject    handle to cbtriangleDS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cbtriangleDS
+
+
+% --- Executes on button press in cbcircleDS.
+function cbcircleDS_Callback(hObject, eventdata, handles)
+% hObject    handle to cbcircleDS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cbcircleDS
+
+
+% --- Executes on button press in cbkiteDS.
+function cbkiteDS_Callback(hObject, eventdata, handles)
+% hObject    handle to cbkiteDS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cbkiteDS
+
+
+% --- Executes on button press in cbparallelogramDS.
+function cbparallelogramDS_Callback(hObject, eventdata, handles)
+% hObject    handle to cbparallelogramDS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of cbparallelogramDS
+
+
+% --- Executes when user attempts to close figure1.
+function figure1_CloseRequestFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: delete(hObject) closes the figure
+% delete(hObject);
+MSair_Callback([], [], handles);
+
+function MSair_Callback(hObject, eventdata, handles)
+% hObject    handle to MSair (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+SN=questdlg('Quit?','Quit','Yes','No','Yes');
+if strcmp(SN,'No')
+    return;
+end
+delete(handles.figure1);
