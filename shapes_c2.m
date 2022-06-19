@@ -31,7 +31,8 @@ end
 out = net(input);
 
 % Plot confusion matrix
-plotconfusion(target, out);
+figure;
+plotconfusion(target, out, 'Test for start -');
 
 r = 0;
 for i=1:size(out,2)
@@ -62,7 +63,8 @@ end
 out = net(input);
 
 % Plot confusion matrix
-plotconfusion(target, out);
+figure;
+plotconfusion(target, out, 'Test for train -');
 
 r = 0;
 for i=1:size(out,2)
@@ -93,7 +95,8 @@ end
 out = net(input);
 
 % Plot confusion matrix
-plotconfusion(target, out);
+figure;
+plotconfusion(target, out, 'Test for test -');
 
 r = 0;
 for i=1:size(out,2)
