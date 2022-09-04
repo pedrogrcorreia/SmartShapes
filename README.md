@@ -32,4 +32,4 @@ Draw a shape on the square to be recognized. This function is blocked until a ne
 Load an image to be recognized. This function is blocked until a network is active.
 
 ## Known bugs
-    - [ ] No error message for missusage of Input folder.
+- [ ] No error message for missusage of Input folder.
